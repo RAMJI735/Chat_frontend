@@ -10,6 +10,16 @@ function LandingPage({ socket, currentUser }) {
     useEffect(() => {
         if (!socket) return;
 
+        const onConnect = () => {
+            socket.emit("join", currentUser);
+        };
+
+        if (socket.connected) {
+            onConnect();
+        }
+
+        socket.on("connect", onConnect);
+
         socket.on("online_users", (users) => {
             setOnlineUsers(users);
         });
@@ -33,11 +43,12 @@ function LandingPage({ socket, currentUser }) {
         });
 
         return () => {
+            socket.off("connect", onConnect);
             socket.off("online_users");
             socket.off("user_online");
             socket.off("user_offline");
         };
-    }, [socket]);
+    }, [socket, currentUser]);
 
     return (
         <div className="flex h-screen w-full bg-gray-50 dark:bg-[#0F172A] overflow-hidden">
