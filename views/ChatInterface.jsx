@@ -1,7 +1,7 @@
 'use client'
 import React, { useState, useEffect, useRef } from 'react';
 
-export function ChatInterface({ socket, currentUser, selectedUser }) {
+export function ChatInterface({ socket, currentUser, selectedUser, onBack }) {
     const avatarSeed = selectedUser.username.replace(/\s+/g, '');
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
@@ -101,15 +101,23 @@ export function ChatInterface({ socket, currentUser, selectedUser }) {
     return (
         <div className="flex flex-col h-full w-full bg-[#f8fafc] dark:bg-[#0F172A]">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 bg-white dark:bg-[#1E293B] border-b border-gray-200 dark:border-gray-800 shadow-sm z-10">
-                <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between px-4 md:px-6 py-4 bg-white dark:bg-[#1E293B] border-b border-gray-200 dark:border-gray-800 shadow-sm z-10">
+                <div className="flex items-center gap-3 md:gap-4">
+                    {/* Mobile Back Button */}
+                    <button 
+                        onClick={onBack}
+                        className="md:hidden p-2 -ml-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        aria-label="Back to users list"
+                    >
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                    </button>
                     <div className="relative">
                         <img
                             src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`}
                             alt="User avatar"
-                            className="w-12 h-12 rounded-full border-2 border-indigo-500 object-cover bg-indigo-50"
+                            className="w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-indigo-500 object-cover bg-indigo-50"
                         />
-                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white dark:border-[#1E293B] rounded-full"></div>
+                        <div className="absolute bottom-0 right-0 w-2.5 h-2.5 md:w-3 md:h-3 bg-green-500 border-2 border-white dark:border-[#1E293B] rounded-full"></div>
                     </div>
                     <div>
                         <h2 className="text-lg font-semibold text-gray-800 dark:text-white">{selectedUser.username}</h2>

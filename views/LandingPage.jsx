@@ -42,7 +42,7 @@ function LandingPage({ socket, currentUser }) {
     return (
         <div className="flex h-screen w-full bg-gray-50 dark:bg-[#0F172A] overflow-hidden">
             {/* Sidebar (Slider) */}
-            <div className="w-80 flex-shrink-0 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1E293B] shadow-[2px_0_10px_rgba(0,0,0,0.02)] z-20">
+            <div className={`w-full md:w-80 flex-shrink-0 border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-[#1E293B] shadow-[2px_0_10px_rgba(0,0,0,0.02)] z-20 ${selectedUser ? 'hidden md:block' : 'block'}`}>
                 <Slider 
                     users={onlineUsers} 
                     currentSocketId={socket?.id} 
@@ -52,12 +52,13 @@ function LandingPage({ socket, currentUser }) {
             </div>
             
             {/* Main Chat Area */}
-            <div className="flex-1 flex flex-col relative bg-transparent z-10">
+            <div className={`flex-1 flex-col relative bg-transparent z-10 ${!selectedUser ? 'hidden md:flex' : 'flex'}`}>
                 {selectedUser ? (
                     <ChatInterface 
                         socket={socket} 
                         currentUser={currentUser} 
                         selectedUser={selectedUser} 
+                        onBack={() => setSelectedUser(null)}
                     />
                 ) : (
                     <div className="flex-1 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
