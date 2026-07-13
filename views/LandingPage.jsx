@@ -35,16 +35,19 @@ function LandingPage({ socket, currentUser }) {
 
         fetchOnlineUsers();
 
-        socket.on("online_users", () => {
-            fetchOnlineUsers();
+        socket.on("online_users", (users) => {
+            setOnlineUsers(users);
         });
 
         socket.on("user_online", (user) => {
-            fetchOnlineUsers();
+            setOnlineUsers((prev) => {
+                if (prev.some(u => u.socketId === user.socketId)) return prev;
+                return [...prev, user];
+            });
         });
 
         socket.on("user_offline", (user) => {
-            fetchOnlineUsers();
+            setOnlineUsers((prev) => prev.filter((u) => u.socketId !== user.socketId));
             // Automatically deselect if the user goes offline
             setSelectedUser((currentSelected) => {
                 if (currentSelected?.socketId === user.socketId) {
