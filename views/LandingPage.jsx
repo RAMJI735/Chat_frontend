@@ -20,19 +20,31 @@ function LandingPage({ socket, currentUser }) {
 
         socket.on("connect", onConnect);
 
-        socket.on("online_users", (users) => {
-            setOnlineUsers(users);
+        const fetchOnlineUsers = async () => {
+            try {
+                const baseUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000';
+                const res = await fetch(`${baseUrl}/api/users/online`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setOnlineUsers(data);
+                }
+            } catch (error) {
+                console.error("Failed to fetch online users via API", error);
+            }
+        };
+
+        fetchOnlineUsers();
+
+        socket.on("online_users", () => {
+            fetchOnlineUsers();
         });
 
         socket.on("user_online", (user) => {
-            setOnlineUsers((prev) => {
-                if (prev.find(u => u.socketId === user.socketId)) return prev;
-                return [...prev, user];
-            });
+            fetchOnlineUsers();
         });
 
         socket.on("user_offline", (user) => {
-            setOnlineUsers((prev) => prev.filter(u => u.socketId !== user.socketId));
+            fetchOnlineUsers();
             // Automatically deselect if the user goes offline
             setSelectedUser((currentSelected) => {
                 if (currentSelected?.socketId === user.socketId) {
