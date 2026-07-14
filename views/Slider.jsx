@@ -1,20 +1,29 @@
 import React from "react";
 
-function Slider({ users = [], currentSocketId, selectedUser, onSelectUser, isConnected = true, unreadCounts = {} }) {
+function Slider({ users = [], currentSocketId, selectedUser, onSelectUser, isConnected = true, unreadCounts = {}, connectionPhase = 'connected', connectionError = null }) {
     // Filter out the current user so they don't see themselves
     const otherUsers = users.filter(u => u.socketId !== currentSocketId);
 
     return (
         <div className="h-full flex flex-col bg-white dark:bg-[#1E293B]">
-            {/* Connection status bar (mobile-friendly) */}
-            <div className={`px-4 py-2 text-center text-xs font-medium transition-colors duration-300 ${
-                isConnected 
-                ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' 
+            {/* ⚡ Smart connection status bar */}
+            <div className={`px-4 py-2 text-center text-xs font-medium transition-all duration-300 ${
+                connectionPhase === 'connected'
+                ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+                : connectionPhase === 'error'
+                ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
                 : 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400'
             }`}>
                 <div className="flex items-center justify-center gap-1.5">
-                    <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'}`}></span>
-                    {isConnected ? 'Connected' : 'Reconnecting...'}
+                    <span className={`w-2 h-2 rounded-full ${
+                        connectionPhase === 'connected' ? 'bg-green-500'
+                        : connectionPhase === 'error' ? 'bg-red-500'
+                        : 'bg-yellow-500 animate-pulse'
+                    }`}></span>
+                    {connectionPhase === 'connected' && 'Connected'}
+                    {connectionPhase === 'connecting' && 'Connecting...'}
+                    {connectionPhase === 'reconnecting' && 'Reconnecting...'}
+                    {connectionPhase === 'error' && (connectionError || 'Connection failed')}
                 </div>
             </div>
 

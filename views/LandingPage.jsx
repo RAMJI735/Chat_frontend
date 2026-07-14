@@ -7,6 +7,8 @@ function LandingPage({ socket, currentUser }) {
     const [onlineUsers, setOnlineUsers] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
     const [isConnected, setIsConnected] = useState(false);
+    const [connectionError, setConnectionError] = useState(null);
+    const hasConnectedBefore = React.useRef(false);
     const disconnectTimeoutRef = React.useRef(null);
 
     // 📦 Per-user conversations: { [socketId]: [{ id, text, sender, time }] }
@@ -28,11 +30,14 @@ function LandingPage({ socket, currentUser }) {
         // If already connected when effect runs, join immediately
         if (socket.connected) {
             setIsConnected(true);
+            hasConnectedBefore.current = true;
             socket.emit("join", currentUser);
         }
 
         const onConnect = () => {
             setIsConnected(true);
+            setConnectionError(null);
+            hasConnectedBefore.current = true;
             if (disconnectTimeoutRef.current) {
                 clearTimeout(disconnectTimeoutRef.current);
                 disconnectTimeoutRef.current = null;
@@ -50,12 +55,18 @@ function LandingPage({ socket, currentUser }) {
             }, 12000);
         };
 
+        const onConnectError = (err) => {
+            console.error("Socket connection error:", err.message);
+            setConnectionError(err.message || "Connection failed");
+        };
+
         const onReconnectAttempt = () => {
             console.log("Reconnecting...");
         };
 
         socket.on("connect", onConnect);
         socket.on("disconnect", onDisconnect);
+        socket.on("connect_error", onConnectError);
         socket.io?.on("reconnect_attempt", onReconnectAttempt);
 
         // ✅ Online user events
@@ -107,6 +118,7 @@ function LandingPage({ socket, currentUser }) {
             }
             socket.off("connect", onConnect);
             socket.off("disconnect", onDisconnect);
+            socket.off("connect_error", onConnectError);
             socket.io?.off("reconnect_attempt", onReconnectAttempt);
             socket.off("online_users");
             socket.off("user_online");
@@ -143,6 +155,15 @@ function LandingPage({ socket, currentUser }) {
 
     const currentMessages = selectedUser ? (conversations[selectedUser.socketId] || []) : [];
 
+    // Determine connection phase for the status bar
+    const connectionPhase = !hasConnectedBefore.current && !isConnected
+        ? 'connecting'
+        : hasConnectedBefore.current && !isConnected
+        ? 'reconnecting'
+        : connectionError
+        ? 'error'
+        : 'connected';
+
     return (
         <div className="flex h-screen w-full bg-gray-50 dark:bg-[#0F172A] overflow-hidden">
             {/* Sidebar (Slider) */}
@@ -154,6 +175,8 @@ function LandingPage({ socket, currentUser }) {
                     onSelectUser={handleSelectUser} 
                     isConnected={isConnected}
                     unreadCounts={unreadCounts}
+                    connectionPhase={connectionPhase}
+                    connectionError={connectionError}
                 />
             </div>
             

@@ -8,6 +8,23 @@ function page() {
   const [socket, setSocket] = useState(null);
   const [isJoined, setIsJoined] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isDark, setIsDark] = useState(false);
+
+  // Sync dark mode state with the <html> class on mount
+  useEffect(() => {
+    setIsDark(document.documentElement.classList.contains('dark'));
+  }, []);
+
+  const toggleDark = () => {
+    const next = !isDark;
+    setIsDark(next);
+    if (next) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('socketchat-theme', next ? 'dark' : 'light');
+  };
 
   const handleJoin = async () => {
     if (username.trim() && !isConnecting) {
@@ -43,7 +60,24 @@ function page() {
   }
 
   return (
-    <div className='flex flex-col justify-center items-center w-full h-screen bg-gradient-to-br from-gray-50 to-indigo-50 dark:from-[#0F172A] dark:to-[#0a0f1e] p-4'>
+    <div className='flex flex-col justify-center items-center w-full h-screen bg-gradient-to-br from-gray-50 to-indigo-50 dark:from-[#0F172A] dark:to-[#0a0f1e] p-4 relative'>
+      {/* 🌙 Dark mode toggle — top-right corner */}
+      <button
+        onClick={toggleDark}
+        className="absolute top-4 right-4 md:top-6 md:right-6 p-2.5 rounded-full bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all duration-300 hover:scale-110 active:scale-90 z-50"
+        aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      >
+        {isDark ? (
+          <svg className="w-5 h-5 text-yellow-500" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        ) : (
+          <svg className="w-5 h-5 text-gray-600" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        )}
+      </button>
+
       <div className="bg-white/80 dark:bg-[#1E293B]/90 backdrop-blur-sm p-6 md:p-8 rounded-2xl shadow-lg flex flex-col items-center border border-gray-100 dark:border-gray-800 w-full max-w-sm transition-all duration-300">
         {/* Logo */}
         <div className="w-14 h-14 md:w-16 md:h-16 bg-indigo-100 dark:bg-indigo-900/50 rounded-full flex items-center justify-center mb-5 md:mb-6">
