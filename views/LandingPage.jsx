@@ -9,6 +9,7 @@ function LandingPage({ socket, currentUser }) {
     const [isConnected, setIsConnected] = useState(false);
     const [connectionError, setConnectionError] = useState(null);
     const hasConnectedBefore = React.useRef(false);
+    const hasReceivedInitialList = React.useRef(false);
     const disconnectTimeoutRef = React.useRef(null);
 
     // 📦 Per-user conversations: { [socketId]: [{ id, text, sender, time }] }
@@ -69,9 +70,17 @@ function LandingPage({ socket, currentUser }) {
         socket.on("connect_error", onConnectError);
         socket.io?.on("reconnect_attempt", onReconnectAttempt);
 
-        // ✅ Online user events
+        // ✅ Online user events — only overwrite if we have real data, never clear with empty
         socket.on("online_users", (users) => {
-            setOnlineUsers(users);
+            if (users && users.length > 0) {
+                setOnlineUsers(users);
+                hasReceivedInitialList.current = true;
+            } else if (!hasReceivedInitialList.current) {
+                // First response is empty — keep [] (shows loading/empty state)
+                setOnlineUsers(users);
+                hasReceivedInitialList.current = true;
+            }
+            // If we get [] after already having users, keep the old list
         });
 
         socket.on("user_online", (user) => {
