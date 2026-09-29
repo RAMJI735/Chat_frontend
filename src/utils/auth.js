@@ -1,6 +1,6 @@
 // API & Authentication Utility for SocketChat
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://chat-backend-lyart-psi.vercel.app';
 
 /**
  * Checks if a JWT token is expired client-side
