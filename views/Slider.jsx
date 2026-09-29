@@ -1,100 +1,179 @@
-import React from "react";
+'use client';
 
-function Slider({ users = [], currentSocketId, selectedUser, onSelectUser, isConnected = true, unreadCounts = {}, connectionPhase = 'connected', connectionError = null }) {
-    // Filter out the current user so they don't see themselves
-    const otherUsers = users.filter(u => u.socketId !== currentSocketId);
+import React from 'react';
+
+function Slider({ 
+    onlineCount = 1,
+    matchState = 'idle',
+    currentUser = '',
+    authUser = null,
+    onStartMatch,
+    onNextPartner,
+    onCancelSearch,
+    onLeaveChat,
+    onCloseMobile
+}) {
+    const userAvatar = authUser?.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(currentUser || "me")}`;
 
     return (
-        <div className="h-full flex flex-col bg-white dark:bg-[#1E293B]">
-            {/* ⚡ Smart connection status bar */}
-            <div className={`px-4 py-2 text-center text-xs font-medium transition-all duration-300 ${
-                connectionPhase === 'connected'
-                ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
-                : connectionPhase === 'error'
-                ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
-                : 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400'
-            }`}>
-                <div className="flex items-center justify-center gap-1.5">
-                    <span className={`w-2 h-2 rounded-full ${
-                        connectionPhase === 'connected' ? 'bg-green-500'
-                        : connectionPhase === 'error' ? 'bg-red-500'
-                        : 'bg-yellow-500 animate-pulse'
-                    }`}></span>
-                    {connectionPhase === 'connected' && 'Connected'}
-                    {connectionPhase === 'connecting' && 'Connecting...'}
-                    {connectionPhase === 'reconnecting' && 'Reconnecting...'}
-                    {connectionPhase === 'error' && (connectionError || 'Connection failed')}
+        <div className="h-full flex flex-col bg-base-100 border-r border-base-300 select-none overflow-hidden">
+            {/* ⚡ Live Connection & Header */}
+            <div className="p-3.5 sm:p-4 border-b border-base-300 safe-top flex-shrink-0">
+                <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold uppercase tracking-wider text-base-content/60">
+                        Live Network
+                    </span>
+
+                    <div className="flex items-center gap-1.5">
+                        <span className="badge badge-success badge-sm gap-1 font-semibold py-2 px-2.5">
+                            <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span>
+                            {onlineCount} Online
+                        </span>
+
+                        {/* Mobile Close Button */}
+                        {onCloseMobile && (
+                            <button
+                                type="button"
+                                onClick={onCloseMobile}
+                                className="md:hidden btn btn-ghost btn-circle btn-xs text-base-content/70 ml-1"
+                                aria-label="Close menu"
+                            >
+                                ✕
+                            </button>
+                        )}
+                    </div>
+                </div>
+                <p className="text-[11px] sm:text-xs text-base-content/60">
+                    Anonymous 1-on-1 random stranger matchmaking.
+                </p>
+            </div>
+
+            {/* Matchmaking Controls */}
+            <div className="p-3.5 sm:p-4 border-b border-base-300 space-y-2 flex-shrink-0">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-base-content/60 block mb-1">
+                    Match Controls
+                </span>
+
+                {matchState === 'idle' && (
+                    <button 
+                        onClick={() => {
+                            if (onCloseMobile) onCloseMobile();
+                            onStartMatch();
+                        }}
+                        className="btn btn-primary w-full shadow-md shadow-primary/20 gap-2 h-11 min-h-[44px]"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>Find Stranger</span>
+                    </button>
+                )}
+
+                {matchState === 'searching' && (
+                    <div className="space-y-2">
+                        <div className="p-3 rounded-2xl bg-base-200/80 border border-base-300 text-center flex flex-col items-center gap-1">
+                            <span className="loading loading-spinner loading-md text-primary"></span>
+                            <span className="text-xs font-semibold text-base-content">Looking for partner...</span>
+                        </div>
+                        <button 
+                            onClick={onCancelSearch}
+                            className="btn btn-outline btn-error btn-sm w-full h-10 min-h-[40px]"
+                        >
+                            Cancel Search
+                        </button>
+                    </div>
+                )}
+
+                {(matchState === 'connected' || matchState === 'partner_left') && (
+                    <div className="space-y-2">
+                        <button 
+                            onClick={() => {
+                                if (onCloseMobile) onCloseMobile();
+                                onNextPartner();
+                            }}
+                            className="btn btn-warning w-full gap-2 shadow-xs h-11 min-h-[44px]"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                            </svg>
+                            <span>Next Stranger (Esc)</span>
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* Guidelines & Shortcuts Info */}
+            <div className="flex-1 overflow-y-auto p-3.5 sm:p-4 space-y-4 text-xs touch-scroll">
+                <div>
+                    <h3 className="font-bold text-base-content uppercase tracking-wider mb-2 text-[11px] text-base-content/70">
+                        Keyboard Shortcuts
+                    </h3>
+                    <div className="space-y-1.5 text-base-content/70">
+                        <div className="flex items-center justify-between bg-base-200/50 p-2 rounded-xl">
+                            <span>Send Message</span>
+                            <kbd className="kbd kbd-xs">Enter</kbd>
+                        </div>
+                        <div className="flex items-center justify-between bg-base-200/50 p-2 rounded-xl">
+                            <span>Next / Skip</span>
+                            <kbd className="kbd kbd-xs">Esc</kbd>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 className="font-bold text-base-content uppercase tracking-wider mb-2 text-[11px] text-base-content/70">
+                        Safety Rules
+                    </h3>
+                    <ul className="space-y-2 text-base-content/60 text-[11px] sm:text-xs">
+                        <li className="flex items-start gap-1.5">
+                            <span className="text-primary font-bold">•</span>
+                            <span>Do not share passwords or private personal info.</span>
+                        </li>
+                        <li className="flex items-start gap-1.5">
+                            <span className="text-primary font-bold">•</span>
+                            <span>Be polite and respectful to everyone you meet.</span>
+                        </li>
+                        <li className="flex items-start gap-1.5">
+                            <span className="text-primary font-bold">•</span>
+                            <span>Tap Next whenever you want to switch partners.</span>
+                        </li>
+                    </ul>
                 </div>
             </div>
 
-            {/* Header */}
-            <div className="p-4 md:p-5 border-b border-gray-100 dark:border-gray-800">
-                <h2 className="text-base md:text-lg font-semibold text-gray-800 dark:text-gray-100 flex items-center justify-between">
-                    Online Users
-                    <span className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 text-xs py-1 px-2.5 rounded-full font-medium flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>
-                        {otherUsers.length}
-                    </span>
-                </h2>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-2 md:p-3 space-y-0.5 md:space-y-1">
-                {otherUsers.length === 0 ? (
-                    <div className="text-center py-8 md:py-10 px-4 flex flex-col items-center">
-                        <div className="w-14 h-14 md:w-16 md:h-16 bg-gray-50 dark:bg-gray-800/50 rounded-full flex items-center justify-center mb-3">
-                            <svg className="w-7 h-7 md:w-8 md:h-8 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+            {/* Current User Profile Footer */}
+            {currentUser && (
+                <div className="p-3 border-t border-base-300 bg-base-200/50 flex items-center justify-between gap-2.5 safe-bottom flex-shrink-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="avatar online">
+                            <div className="w-8 h-8 rounded-full ring-1 ring-primary/40">
+                                <img src={userAvatar} alt={currentUser} />
+                            </div>
                         </div>
-                        <p className="text-gray-500 dark:text-gray-400 text-sm">No one else is online right now.</p>
-                        <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">Share this app with friends to start chatting!</p>
+                        <div className="min-w-0">
+                            <p className="text-xs font-bold text-base-content truncate">
+                                {authUser?.fullName || currentUser}
+                            </p>
+                            <p className="text-[10px] text-primary font-medium truncate">
+                                @{currentUser} {authUser ? '✓' : '(Guest)'}
+                            </p>
+                        </div>
                     </div>
-                ) : (
-                    otherUsers.map((user) => {
-                        const isSelected = selectedUser?.socketId === user.socketId;
-                        const avatarSeed = user.username.replace(/\s+/g, '');
-                        const unread = unreadCounts[user.socketId] || 0;
-                        
-                        return (
-                            <button
-                                key={user.socketId}
-                                onClick={() => onSelectUser(user)}
-                                className={`w-full flex items-center gap-3 p-2.5 md:p-3 rounded-xl transition-all duration-200 active:scale-[0.98] ${
-                                    isSelected 
-                                    ? 'bg-indigo-50 dark:bg-indigo-900/30 shadow-sm border border-indigo-100 dark:border-indigo-800/50' 
-                                    : 'hover:bg-gray-50 dark:hover:bg-gray-800/50 border border-transparent'
-                                }`}
-                            >
-                                <div className="relative flex-shrink-0">
-                                    <img 
-                                        src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`} 
-                                        alt="Avatar" 
-                                        loading="lazy"
-                                        className={`w-9 h-9 md:w-10 md:h-10 rounded-full object-cover ${isSelected ? 'ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-[#1E293B]' : 'bg-gray-100 dark:bg-gray-800'}`}
-                                    />
-                                    <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white dark:border-[#1E293B] rounded-full"></div>
-                                </div>
-                                <div className="flex-1 min-w-0 flex items-center gap-2">
-                                    <span className={`font-medium text-sm truncate block ${
-                                        isSelected 
-                                        ? 'text-indigo-700 dark:text-indigo-300' 
-                                        : unread > 0 
-                                        ? 'text-gray-900 dark:text-white font-semibold' 
-                                        : 'text-gray-700 dark:text-gray-300'
-                                    }`}>
-                                        {user.username}
-                                    </span>
-                                    {unread > 0 && !isSelected && (
-                                        <span className="flex-shrink-0 bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1 animate-pulse">
-                                            {unread > 99 ? '99+' : unread}
-                                        </span>
-                                    )}
-                                </div>
-                                {/* Tap indicator for mobile */}
-                                <svg className="w-4 h-4 text-gray-300 dark:text-gray-600 md:hidden flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                            </button>
-                        );
-                    })
-                )}
-            </div>
+
+                    {onLeaveChat && (
+                        <button
+                            onClick={onLeaveChat}
+                            title="Exit to Main Menu"
+                            className="btn btn-ghost btn-circle btn-sm text-base-content/50 hover:text-error"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                        </button>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
