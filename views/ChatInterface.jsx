@@ -36,7 +36,7 @@ export function ChatInterface({
         if (isPartnerActive && window.innerWidth >= 768) {
             inputRef.current?.focus();
         }
-    }, [partner?.socketId, isPartnerActive]);
+    }, [partner?._id, partner?.id, partner?.socketId, isPartnerActive]);
 
     const handleInputChange = (e) => {
         setInputValue(e.target.value);

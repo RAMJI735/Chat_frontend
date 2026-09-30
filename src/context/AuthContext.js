@@ -11,7 +11,8 @@ import {
     getTokenRemainingTimeMs,
     apiLogin, 
     apiRegister, 
-    apiGetMe 
+    apiGetMe,
+    apiLogout 
 } from '../utils/auth';
 
 const AuthContext = createContext({
@@ -30,15 +31,22 @@ export const AuthProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const expiryTimerRef = useRef(null);
 
-    // 🚪 Explicit Logout
-    const logout = useCallback(() => {
+    // 🚪 Explicit Logout (Clears local state, calls backend logout to clear cookie and mark offline)
+    const logout = useCallback(async () => {
         if (expiryTimerRef.current) {
             clearTimeout(expiryTimerRef.current);
             expiryTimerRef.current = null;
         }
-        clearAuth();
-        setUser(null);
-        setToken(null);
+
+        try {
+            await apiLogout();
+        } catch (e) {
+            console.warn('[Auth] Server logout notification failed:', e);
+        } finally {
+            clearAuth();
+            setUser(null);
+            setToken(null);
+        }
     }, []);
 
     // ⏱️ Schedule automatic logout when token expires
@@ -117,9 +125,21 @@ export const AuthProvider = ({ children }) => {
                         }
                     }
                 } else {
-                    if (isMounted) {
-                        setUser(null);
-                        setToken(null);
+                    // No token in localStorage: check if an active HTTP-only cookie session exists on server
+                    try {
+                        const cookieResponse = await apiGetMe();
+                        if (isMounted && cookieResponse?.success && cookieResponse?.user) {
+                            setUser(cookieResponse.user);
+                            setStoredUser(cookieResponse.user);
+                        } else if (isMounted) {
+                            setUser(null);
+                            setToken(null);
+                        }
+                    } catch {
+                        if (isMounted) {
+                            setUser(null);
+                            setToken(null);
+                        }
                     }
                 }
             } catch (err) {
@@ -190,7 +210,7 @@ export const AuthProvider = ({ children }) => {
                 login,
                 register,
                 logout,
-                isAuthenticated: !!token && !!user && !isTokenExpired(token),
+                isAuthenticated: !!user && (!token || !isTokenExpired(token)),
             }}
         >
             {children}

@@ -47,6 +47,8 @@ export default function Home() {
       try {
         const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000';
         const newSocket = io(socketUrl, {
+          withCredentials: true,
+          transports: ['websocket', 'polling'],
           reconnectionAttempts: 10,
           reconnectionDelay: 1000,
           reconnectionDelayMax: 5000,
@@ -54,6 +56,7 @@ export default function Home() {
         });
         setSocket(newSocket);
         setIsJoined(true);
+        setIsConnecting(false);
       } catch (error) {
         console.error("Failed to connect:", error);
         setIsConnecting(false);

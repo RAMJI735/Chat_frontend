@@ -118,12 +118,17 @@ export const clearAuth = () => {
 };
 
 // 🔑 API Calls
+
+/**
+ * Sign in existing user with username/email & password
+ */
 export const apiLogin = async (identifier, password) => {
     const res = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({ identifier, password }),
     });
 
@@ -136,12 +141,16 @@ export const apiLogin = async (identifier, password) => {
     return data;
 };
 
+/**
+ * Register new user
+ */
 export const apiRegister = async (userData) => {
     const res = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(userData),
     });
 
@@ -154,32 +163,86 @@ export const apiRegister = async (userData) => {
     return data;
 };
 
+/**
+ * Fetch current authenticated user session (supports token & cookies)
+ */
 export const apiGetMe = async (token) => {
     const authToken = token || getAuthToken();
-    if (!authToken) {
-        const error = new Error('No authentication token available');
-        error.status = 401;
-        throw error;
-    }
+    const headers = {
+        'Content-Type': 'application/json',
+    };
 
-    if (isTokenExpired(authToken)) {
-        clearAuth();
-        const error = new Error('Session token has expired');
-        error.status = 401;
-        throw error;
+    if (authToken) {
+        if (isTokenExpired(authToken)) {
+            clearAuth();
+            const error = new Error('Session token has expired');
+            error.status = 401;
+            throw error;
+        }
+        headers['Authorization'] = `Bearer ${authToken}`;
     }
 
     const res = await fetch(`${API_URL}/api/auth/me`, {
         method: 'GET',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`,
-        },
+        headers,
+        credentials: 'include',
     });
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
         const error = new Error(data.message || 'Failed to authenticate user session');
+        error.status = res.status;
+        throw error;
+    }
+    return data;
+};
+
+/**
+ * Invalidate server session, clear httpOnly cookie, and mark user offline
+ */
+export const apiLogout = async () => {
+    const token = getAuthToken();
+    const headers = {
+        'Content-Type': 'application/json',
+    };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    try {
+        const res = await fetch(`${API_URL}/api/auth/logout`, {
+            method: 'POST',
+            headers,
+            credentials: 'include',
+        });
+        return await res.json().catch(() => ({ success: true }));
+    } catch (e) {
+        console.warn('apiLogout request error:', e);
+        return { success: false };
+    }
+};
+
+/**
+ * Request random online match via REST API (complementary to socket find_match)
+ */
+export const apiMatch = async () => {
+    const token = getAuthToken();
+    const headers = {
+        'Content-Type': 'application/json',
+    };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const res = await fetch(`${API_URL}/api/auth/match`, {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+        const error = new Error(data.message || 'No online users found');
         error.status = res.status;
         throw error;
     }

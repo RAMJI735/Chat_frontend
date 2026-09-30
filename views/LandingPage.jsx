@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Slider from './Slider';
 import { ChatInterface } from './ChatInterface';
 import { API_URL } from '@/utils/auth';
@@ -8,16 +8,30 @@ import { API_URL } from '@/utils/auth';
 function LandingPage({ socket, currentUser, authUser, onLeaveChat }) {
     // 🎲 Matchmaking State: 'idle' | 'searching' | 'connected' | 'partner_left'
     const [matchState, setMatchState] = useState('idle');
+    const [matchId, setMatchId] = useState(null);
     const [partner, setPartner] = useState(null);
     const [messages, setMessages] = useState([]);
     const [isPartnerTyping, setIsPartnerTyping] = useState(false);
     const [onlineCount, setOnlineCount] = useState(1);
-    const [waitingMessage, setWaitingMessage] = useState('Looking for a random stranger to connect...');
+    const [waitingMessage, setWaitingMessage] = useState('Looking for online users to connect...');
     const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+
+    // Refs to avoid stale state in asynchronous socket listeners
+    const matchIdRef = useRef(null);
+    const partnerRef = useRef(null);
+
+    // Synchronize refs with state
+    useEffect(() => {
+        matchIdRef.current = matchId;
+    }, [matchId]);
+
+    useEffect(() => {
+        partnerRef.current = partner;
+    }, [partner]);
 
     // Initial fetch of online count from REST API
     useEffect(() => {
-        fetch(`${API_URL}/api/users/online`)
+        fetch(`${API_URL}/api/users/online`, { credentials: 'include' })
             .then((res) => res.json())
             .then((data) => {
                 if (data.success && typeof data.onlineCount === 'number') {
@@ -31,12 +45,17 @@ function LandingPage({ socket, currentUser, authUser, onLeaveChat }) {
     useEffect(() => {
         if (!socket) return;
 
+        const joinPayload = {
+            userId: authUser?.id || authUser?._id,
+            username: currentUser || authUser?.username
+        };
+
         if (socket.connected) {
-            socket.emit("join", currentUser);
+            socket.emit("join", joinPayload);
         }
 
         const onConnect = () => {
-            socket.emit("join", currentUser);
+            socket.emit("join", joinPayload);
         };
 
         const onJoined = (data) => {
@@ -51,19 +70,35 @@ function LandingPage({ socket, currentUser, authUser, onLeaveChat }) {
 
         const onWaitingForPartner = (data) => {
             setMatchState('searching');
-            setWaitingMessage(data?.message || 'Looking for a random stranger to connect...');
+            setWaitingMessage(data?.message || 'Looking for online users to connect...');
             setPartner(null);
+            setMatchId(null);
+            matchIdRef.current = null;
+            partnerRef.current = null;
         };
 
-        const onMatchFound = ({ roomId, partner: matchedPartner }) => {
-            setMatchState('connected');
+        // Backend emits { matchId: match._id, user: { _id, username, avatar, country } }
+        const onMatchFound = (data) => {
+            const currentMatchId = data?.matchId || data?.roomId;
+            const matchedPartner = data?.user || data?.partner;
+
+            setMatchId(currentMatchId);
+            matchIdRef.current = currentMatchId;
             setPartner(matchedPartner);
+            partnerRef.current = matchedPartner;
+            setMatchState('connected');
             setIsPartnerTyping(false);
             setIsMobileDrawerOpen(false); // Close mobile drawer when match is found
+
+            // Ensure socket is joined to the match room
+            if (currentMatchId) {
+                socket.emit("join_match", { matchId: currentMatchId });
+            }
+
             setMessages([
                 {
                     id: 'sys_' + Date.now(),
-                    text: `🎉 You are now connected to a stranger! Be polite and say hello.`,
+                    text: `🎉 You are connected to ${matchedPartner?.username || 'a stranger'}! Say hello.`,
                     sender: 'system',
                     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 }
@@ -77,7 +112,7 @@ function LandingPage({ socket, currentUser, authUser, onLeaveChat }) {
                 ...prev,
                 {
                     id: 'sys_' + Date.now(),
-                    text: data?.message || 'Stranger has skipped the chat.',
+                    text: data?.message || 'Stranger skipped the chat.',
                     sender: 'system',
                     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 }
@@ -101,20 +136,28 @@ function LandingPage({ socket, currentUser, authUser, onLeaveChat }) {
         const onSearchCancelled = () => {
             setMatchState('idle');
             setPartner(null);
+            setMatchId(null);
+            matchIdRef.current = null;
+            partnerRef.current = null;
         };
 
         const onChatLeft = () => {
             setMatchState('idle');
             setPartner(null);
+            setMatchId(null);
+            matchIdRef.current = null;
+            partnerRef.current = null;
             setMessages([]);
         };
 
         const onReceiveMessage = (data) => {
+            const text = data?.text || data?.message || '';
+            if (!text) return;
             const msg = {
                 id: Date.now() + Math.random(),
-                text: data.text || data.message || '',
+                text,
                 sender: 'partner',
-                time: new Date(data.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                time: new Date(data?.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             };
             setMessages((prev) => [...prev, msg]);
         };
@@ -168,43 +211,73 @@ function LandingPage({ socket, currentUser, authUser, onLeaveChat }) {
             socket.off("stop_typing", onStopTyping);
             socket.off("error_message", onErrorMessage);
         };
-    }, [socket, currentUser]);
+    }, [socket, currentUser, authUser]);
 
     // 🚀 Actions Triggered by User
     const handleStartMatch = useCallback(() => {
         if (!socket) return;
         setMatchState('searching');
+        setWaitingMessage('Looking for online users to connect...');
+        setPartner(null);
+        setMatchId(null);
+        matchIdRef.current = null;
+        partnerRef.current = null;
         setMessages([]);
         setIsMobileDrawerOpen(false);
-        socket.emit("find_match");
-    }, [socket]);
+
+        socket.emit("find_match", {
+            userId: authUser?.id || authUser?._id
+        });
+    }, [socket, authUser]);
 
     const handleNextPartner = useCallback(() => {
         if (!socket) return;
+        const currentId = matchIdRef.current || matchId;
+        if (currentId) {
+            socket.emit("next_partner", { matchId: currentId });
+        }
         setMatchState('searching');
         setWaitingMessage('Skipping to next stranger...');
         setPartner(null);
+        setMatchId(null);
+        matchIdRef.current = null;
+        partnerRef.current = null;
         setIsMobileDrawerOpen(false);
-        socket.emit("next_partner");
-    }, [socket]);
+
+        // Immediately search for next partner
+        socket.emit("find_match", {
+            userId: authUser?.id || authUser?._id
+        });
+    }, [socket, matchId, authUser]);
 
     const handleCancelSearch = useCallback(() => {
         if (!socket) return;
         socket.emit("cancel_search");
         setMatchState('idle');
+        setWaitingMessage('Looking for online users to connect...');
     }, [socket]);
 
     const handleLeaveChat = useCallback(() => {
         if (!socket) return;
-        socket.emit("leave_chat");
+        const currentId = matchIdRef.current || matchId;
+        if (currentId) {
+            socket.emit("leave_chat", { matchId: currentId });
+            socket.emit("leave_match", { matchId: currentId });
+        }
         setMatchState('idle');
         setPartner(null);
+        setMatchId(null);
+        matchIdRef.current = null;
+        partnerRef.current = null;
         setMessages([]);
         setIsMobileDrawerOpen(false);
-    }, [socket]);
+    }, [socket, matchId]);
 
     const handleSendMessage = useCallback((text) => {
         if (!socket || !text) return;
+        const currentId = matchIdRef.current || matchId;
+        const currentPartner = partnerRef.current || partner;
+
         const msg = {
             id: Date.now() + Math.random(),
             text,
@@ -212,16 +285,37 @@ function LandingPage({ socket, currentUser, authUser, onLeaveChat }) {
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
         setMessages((prev) => [...prev, msg]);
-        socket.emit("send_message", { text });
-    }, [socket]);
+
+        socket.emit("send_message", {
+            matchId: currentId,
+            text,
+            message: text,
+            receiverSocketId: currentPartner?.socketId,
+            receiverId: currentPartner?._id || currentPartner?.id
+        });
+    }, [socket, matchId, partner]);
 
     const handleSendTyping = useCallback(() => {
-        if (socket) socket.emit("typing");
-    }, [socket]);
+        if (!socket) return;
+        const currentId = matchIdRef.current || matchId;
+        const currentPartner = partnerRef.current || partner;
+        socket.emit("typing", {
+            matchId: currentId,
+            receiverSocketId: currentPartner?.socketId,
+            receiverId: currentPartner?._id || currentPartner?.id
+        });
+    }, [socket, matchId, partner]);
 
     const handleSendStopTyping = useCallback(() => {
-        if (socket) socket.emit("stop_typing");
-    }, [socket]);
+        if (!socket) return;
+        const currentId = matchIdRef.current || matchId;
+        const currentPartner = partnerRef.current || partner;
+        socket.emit("stop_typing", {
+            matchId: currentId,
+            receiverSocketId: currentPartner?.socketId,
+            receiverId: currentPartner?._id || currentPartner?.id
+        });
+    }, [socket, matchId, partner]);
 
     return (
         <div className="flex h-screen h-[100dvh] w-full bg-base-200/40 overflow-hidden relative">
