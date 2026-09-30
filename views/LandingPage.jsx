@@ -6,8 +6,8 @@ import { ChatInterface } from './ChatInterface';
 import { API_URL } from '@/utils/auth';
 
 function LandingPage({ socket, currentUser, authUser, onLeaveChat }) {
-    // 🎲 Matchmaking State: 'idle' | 'searching' | 'connected' | 'partner_left'
-    const [matchState, setMatchState] = useState('idle');
+    // 🎲 Matchmaking State: 'searching' | 'connected' | 'partner_left' | 'idle'
+    const [matchState, setMatchState] = useState('searching');
     const [matchId, setMatchId] = useState(null);
     const [partner, setPartner] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -50,16 +50,28 @@ function LandingPage({ socket, currentUser, authUser, onLeaveChat }) {
             username: currentUser || authUser?.username
         };
 
+        const triggerFindMatch = () => {
+            setMatchState('searching');
+            setWaitingMessage('Looking for online users to connect...');
+            socket.emit("find_match", {
+                userId: authUser?.id || authUser?._id
+            });
+        };
+
+        // 1. connect() → Start Matching
         if (socket.connected) {
             socket.emit("join", joinPayload);
+            triggerFindMatch();
         }
 
         const onConnect = () => {
             socket.emit("join", joinPayload);
+            triggerFindMatch();
         };
 
         const onJoined = (data) => {
             console.log("Joined chat session:", data);
+            triggerFindMatch();
         };
 
         const onOnlineCount = ({ onlineCount: count }) => {
@@ -77,7 +89,7 @@ function LandingPage({ socket, currentUser, authUser, onLeaveChat }) {
             partnerRef.current = null;
         };
 
-        // Backend emits { matchId: match._id, user: { _id, username, avatar, country } }
+        // 2. connected (Match Found) → Chat
         const onMatchFound = (data) => {
             const currentMatchId = data?.matchId || data?.roomId;
             const matchedPartner = data?.user || data?.partner;
@@ -182,6 +194,17 @@ function LandingPage({ socket, currentUser, authUser, onLeaveChat }) {
             ]);
         };
 
+        // 3. disconnect() → Leave/reload handler
+        const handleBeforeUnload = () => {
+            if (matchIdRef.current) {
+                socket.emit("leave_chat", { matchId: matchIdRef.current });
+                socket.emit("leave_match", { matchId: matchIdRef.current });
+            }
+            socket.disconnect();
+        };
+
+        window.addEventListener("beforeunload", handleBeforeUnload);
+
         socket.on("connect", onConnect);
         socket.on("joined", onJoined);
         socket.on("online_count", onOnlineCount);
@@ -197,6 +220,7 @@ function LandingPage({ socket, currentUser, authUser, onLeaveChat }) {
         socket.on("error_message", onErrorMessage);
 
         return () => {
+            window.removeEventListener("beforeunload", handleBeforeUnload);
             socket.off("connect", onConnect);
             socket.off("joined", onJoined);
             socket.off("online_count", onOnlineCount);
@@ -257,6 +281,7 @@ function LandingPage({ socket, currentUser, authUser, onLeaveChat }) {
         setWaitingMessage('Looking for online users to connect...');
     }, [socket]);
 
+    // 3. Explicit User Leave Chat → Disconnect socket
     const handleLeaveChat = useCallback(() => {
         if (!socket) return;
         const currentId = matchIdRef.current || matchId;
@@ -271,7 +296,13 @@ function LandingPage({ socket, currentUser, authUser, onLeaveChat }) {
         partnerRef.current = null;
         setMessages([]);
         setIsMobileDrawerOpen(false);
-    }, [socket, matchId]);
+
+        if (onLeaveChat) {
+            onLeaveChat();
+        } else {
+            socket.disconnect();
+        }
+    }, [socket, matchId, onLeaveChat]);
 
     const handleSendMessage = useCallback((text) => {
         if (!socket || !text) return;
