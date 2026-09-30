@@ -44,6 +44,10 @@ export const metadata = {
     description:
       "Meet new people and start random 1-on-1 conversations online.",
   },
+
+  verification: {
+    google: "1K_6BSvbhJyx8ABDuuSgGFKL2AS5iJsej18dQo87_lw",
+  },
 };
 
 export const viewport = {
