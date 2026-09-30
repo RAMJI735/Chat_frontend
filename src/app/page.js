@@ -134,11 +134,11 @@ export default function Home() {
             </svg>
           </div>
           
-          <h1 className="text-2xl sm:text-3xl font-extrabold mb-1 text-base-content tracking-tight">
-            SocketChat
+          <h1 className="text-2xl sm:text-3xl font-extrabold mb-1 text-base-content tracking-tight text-center">
+            Random Chat - Talk to Strangers Online
           </h1>
           <p className="text-base-content/60 mb-5 sm:mb-6 text-center text-xs sm:text-sm">
-            Real-time random 1-on-1 chat worldwide
+            Meet new people and start random 1-on-1 conversations online. Chat with strangers instantly from anywhere in the world.
           </p>
 
           {/* State 0: Checking active session (Prevents flash of login screen on refresh) */}
@@ -273,6 +273,28 @@ export default function Home() {
           )}
         </div>
       </div>
+      
+      {/* Homepage SEO Content */}
+      <section className="w-full max-w-2xl mt-8 mb-6 px-4 text-center z-10">
+        <h2 className="text-xl font-bold mb-3 text-base-content">
+          Random Chat Online
+        </h2>
+
+        <p className="text-sm text-base-content/60 leading-6">
+          Random Chat Anyone lets you meet new people and have real-time
+          conversations online. Start a random chat, talk to strangers,
+          and make new connections from anywhere in the world.
+        </p>
+
+        <h2 className="text-xl font-bold mt-6 mb-3 text-base-content">
+          How Random Chat Works
+        </h2>
+
+        <p className="text-sm text-base-content/60 leading-6">
+          Choose a username and join the chat. Start a real-time 1-on-1
+          conversation and meet someone new online.
+        </p>
+      </section>
       
       {/* Footer */}
       <div className="flex items-center gap-2 sm:gap-3 text-base-content/40 text-[11px] sm:text-xs mt-4 sm:mt-6 text-center safe-bottom">

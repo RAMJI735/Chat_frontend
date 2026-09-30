@@ -13,8 +13,37 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "SocketChat - Real-time Global Chat",
-  description: "Modern, secure real-time messaging with instant presence and typing indicators",
+  metadataBase: new URL("https://randomchatanyone.vercel.app"),
+
+  title: "Random Chat Anyone - Talk to Strangers Online",
+
+  description:
+    "Random Chat Anyone is a free online random chat platform to meet new people, talk to strangers, and start real-time 1-on-1 conversations.",
+
+  alternates: {
+    canonical: "/",
+  },
+
+  robots: {
+    index: true,
+    follow: true,
+  },
+
+  openGraph: {
+    title: "Random Chat Anyone - Talk to Strangers Online",
+    description:
+      "Meet new people and start random 1-on-1 conversations online.",
+    url: "https://randomchatanyone.vercel.app/",
+    siteName: "Random Chat Anyone",
+    type: "website",
+  },
+
+  twitter: {
+    card: "summary",
+    title: "Random Chat Anyone - Talk to Strangers Online",
+    description:
+      "Meet new people and start random 1-on-1 conversations online.",
+  },
 };
 
 export const viewport = {
